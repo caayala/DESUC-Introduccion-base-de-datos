@@ -5,22 +5,19 @@ date: "21/01/2019"
 output:
   ioslides_presentation:
     smaller: yes
-  beamer_presentation: default
-  slidy_presentation: default
+  pdf_document:
+  beamer_presentation: 
 subtitle: Manejo de base de datos
 ---
 
 ```{r setup, include=FALSE}
-# slidy_presentation
-# ioslides_presentation
-
 library(tidyverse) # Básico: dplyr, tidyr, purrr, stringr, forcats
 library(knitr)
 
 library(sf)
 library(leaflet)
 
-mapas <- FALSE
+mapas <- TRUE
 knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
 ```
 
@@ -574,7 +571,7 @@ gg <- df_dir_18_geo %>%
   scale_color_discrete(name = 'Dependencia')
 ```
 
-## Posición de escuelas en RM: **ggmap**
+## Posición de escuelas en RM: ggmap
 
 ```{r, warning=FALSE, eval=mapas}
 library(ggmap)
@@ -587,9 +584,9 @@ ggmap(mapa_base) +
   scale_colour_discrete(name = 'Dependencia')
 ```
 
-## Posición de escuelas en RM: **leaflet**
+## Posición de escuelas en RM: leaflet
 
-```{r, warning=FALSE, eval=mapas}
+```{r, warning=FALSE, eval=FALSE}
 library(leaflet)
 
 leaflet() %>% # leaflet works with the pipe operator
