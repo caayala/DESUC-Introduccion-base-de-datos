@@ -1,0 +1,602 @@
+---
+title: "R - Taller DESUC"
+author: "DESUC"
+date: "21/01/2019"
+output:
+  ioslides_presentation:
+    smaller: yes
+  beamer_presentation: default
+  slidy_presentation: default
+subtitle: Manejo de base de datos
+---
+
+```{r setup, include=FALSE}
+# slidy_presentation
+# ioslides_presentation
+
+library(tidyverse) # Básico: dplyr, tidyr, purrr, stringr, forcats
+library(knitr)
+
+library(sf)
+library(leaflet)
+
+mapas <- FALSE
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+## Motivación
+
+¿Por qué?
+
+* Trabajamos con datos
+* Invertir tiempo en lo que importa
+
+## Motivación
+
+¿Por qué?
+
+* integrasión de principio a fin
+* automatizacion, reportes y reproducibilidad
+* gráficos
+* paquetes y comunidad
+
+## R: Lenguaje vs Software
+
+¿Qué es lo que lo hace tan intimidante?
+
+### análisis <----> programación
+
+## Definiciones
+
+* [tidyverse](https://www.tidyverse.org)
+
+*The tidyverse is an opinionated collection of R packages designed for data science. All packages share an underlying design philosophy, grammar, and data structures.*
+
+```{r, fig.align='center', out.width="600px"}
+include_graphics('images/data-science-explore.png')
+```
+
+## Definiciones
+
+* [tidy data](https://r4ds.had.co.nz/tidy-data.html)
+
+*Tidy data sets are arranged such that each variable is a column and each observation (or case) is a row*
+
+```{r}
+not_tidy <- tibble(Año            = c(2017, 2018, 2019),
+                   Cualitativo    = c(5, 4, 1),
+                   Cuantitativo   = c(15, 16, 1),
+                   Organizacional = c(4, 3, 0))
+not_tidy
+```
+
+## Definiciones
+
+* [tidy data](https://en.wikipedia.org/wiki/Tidy_data)
+
+*Tidy data sets are arranged such that each variable is a column and each observation (or case) is a row*
+
+```{r}
+tidy <- not_tidy %>% 
+  gather('Unidad', 'n', -Año)
+
+tidy %>% head()
+```
+
+Estructura de datos estandarizada para poder utilizar las herramientas de *tidyverse*.
+
+## Objetivo
+
+Utilizar R y tidyverse para el manejo de base de datos:
+
+* Lectura de bases de datos
+* Manipulación de variables
+* Uso y manejo de etiquetas
+
+## Ejercicio
+
+Uso de *directorio* y *matrícula* de alumnos de 2018, provista por el MINEDUC. 
+
+Queremos obtener la siguiente información según establecimiento:
+
+* Categorizar establecimientos según áreas del Gran Santiago
+* Establecimientos según si son CH y/o TP
+* Establecimientos con enseñanza básica y/o media
+* Número de hombres y mujeres por establecimiento
+* Edad promedio de sus estudiantes NNA
+
+## Paquetes
+
+```{r, message=FALSE}
+library(readxl) # Lectura de archivos excel
+library(haven) # Lectura de SPSS o Stata
+library(tidyverse) # Básico: dplyr, tidyr, purrr, stringr, forcats
+library(janitor) # Arreglo de nombres y tablas
+
+library(sjlabelled) # Manejo de etiquetas
+library(sjmisc) # Funciones de ayuda
+
+library(knitr) # Creación de documentos mediante Rmarkdown
+```
+
+# Lectura de datos
+
+## Lectura de datos: Excel
+
+Datos de comunas que componen el Gran Santiago
+
+* **xlsx**: `readxl::read_excel`
+
+```{r}
+df_gran_santiago <- read_excel('../data/gran_santiago.xlsx',
+                               sheet = 1,
+                               trim_ws = TRUE)
+```
+
+Tips:
+
+* Designar rangos específicos para leer información (`range = `)
+* Saltar algunas filas en blanco (`skip = `)
+
+## Lectura de datos: Excel
+
+Explorar base de datos:
+
+¿Cómo se ve la base de datos que acabo de leer?
+
+```{r}
+glimpse(df_gran_santiago)
+```
+
+## Lectura de datos: Bases en texto
+
+Matrícula de alumnos 2018.
+
+* **CSV**: `readr::read_csv` o `readr::read_csv2`. 
+
+Diferencia entre funciones es el delimitador de columnas. Para datos en Chile, en general, se usaría `read_csv2`.
+
+```{r}
+df_mat_18 <- read_csv2('../data/20181005_Matrícula_unica_2018_20180430_PUBL.gs.csv.zip')
+```
+
+Tips:
+
+* Se puede leer csv comprimidos en zip
+* Se puede configurar los parámetros si se quisiese (`read_delim`)
+
+## Lectura de datos: Bases en texto
+
+¿Cuáles son el nombre de las variables de la base de matrícula?
+
+```{r}
+names(df_mat_18)
+```
+
+¿Cuál es el tamaño de la base?
+
+```{r}
+dim(df_mat_18)
+```
+
+## Lectura de datos: SPSS
+
+Directorio de establecimientos
+
+* `SPSS`: `haven::read_sav`
+
+```{r}
+df_dir_18 <- read_sav('../data/20181005_Directorio_Oficial_EE_2018_20180430_PUBL.rm.sav')
+```
+
+Tips: 
+
+* Lee etiquetas de preguntas y variables.
+
+## Lectura de datos: SPSS
+
+¿Cuál eses son las etiquetas de las variables en la base?
+
+```{r}
+sjlabelled::get_label(df_dir_18)
+```
+
+## Lectura de datos: SPSS
+
+¿Y las etiquetas de los niveles?
+
+```{r}
+df_dir_18 %>% 
+  select(COD_DEPE) %>% 
+  sjlabelled::get_labels()
+```
+
+
+# Análisis
+
+## Análisis: herramienta
+
+Para el manejo de base de datos, usaremos `dplyr`. En resumen:
+
+* `filter`: filtra casos según una condición
+* `select`: selecciona variables según nombre
+* `mutate`: crea variables
+* `group_by`: agrupa casos según una variable
+* `summarise`: crea resumen de variables
+
+Todos estos verbos se enlazan con la pipa `%>%`
+
+## Análisis: la pipa
+
+Permite poner comnandos según secuencia de ejecución.
+
+Hace la lectura de código más sencilla y clara.
+
+```{r}
+exp(sqrt(9))
+```
+
+```{r}
+9 %>% 
+  sqrt(.) %>% 
+  exp(.)
+```
+
+```{r}
+x <- 9
+x <- sqrt(x)
+exp(x)
+```
+
+## Análisis: tip
+
+Hay muy buenos *cheetsheets* donde se pueden revisar diversas funciones existentes.
+
+```{r}
+knitr::include_graphics('dplyr.pdf')
+```
+
+## Análisis Gran Santiago: casos
+
+Utilizaré base de `df_gran_santiago` porque es más pequeña que las otras dos.
+
+¿Cómo se ve la base de datos que acabo de leer? 
+
+* Ver primeras tres filas `head()`.
+* Ver últimas filas con `tail()`
+
+```{r}
+df_gran_santiago %>% head(3)
+```
+
+```{r}
+df_gran_santiago %>% tail(3)
+```
+
+## Análisis Gran Santiago: filtrar casos
+
+Usar función `filter()`.
+
+```{r}
+df_gran_santiago %>% 
+  filter(zonas == 'Norte')
+```
+
+## Análisis Gran Santiago: ordenar casos
+
+Ordenar la base en base al código comunal `arrange(comuna)`.
+
+```{r}
+df_gran_santiago %>% arrange(comuna) %>% head(3)
+```
+
+## Análisis Gran Santiago: grupos
+
+¿Cuál es la cantidad de comunas por zona? Agrupar por zona `group_by(zonas)` y luego calcular dato por grupo `summarise()`.
+
+```{r}
+df_gran_santiago %>% 
+  group_by(zonas) %>% 
+  summarise(comunas_n = n())
+```
+
+## Análisis: Matrícula
+
+¿Cuál es el número de alumnos según dependencia?
+
+```{r}
+df_mat_18 %>% 
+  group_by(COD_DEPE2) %>% 
+  summarise(alumnos_n = n())
+```
+
+## Análisis: Matrícula
+
+¿Podemos agregar la proporción?
+
+```{r}
+df_mat_18 %>% 
+  group_by(COD_DEPE2) %>% 
+  summarise(alumnos_n = n()) %>% 
+  mutate(alumnos_prop = alumnos_n / sum(alumnos_n))
+```
+
+## Análisis: Matrícula
+
+¿Y si queremos saber el número de alumnos por sexo? 
+
+* Alternativa *no-tidy*
+
+```{r}
+df_mat_18 %>% 
+  group_by(COD_DEPE2) %>% 
+  summarise(alumnos_mas_n = sum(GEN_ALU == 1),
+            alumnos_fem_n = sum(GEN_ALU == 2)) %>% 
+  mutate_at(vars(starts_with('alumnos')), funs(prop = ./sum(.)))
+```
+
+## Análisis: Matrícula
+
+¿Y si queremos saber el número de alumnos por sexo? ¡Agrupar por la variable de sexo!
+
+* Alternativa *tidy*
+
+```{r}
+df_mat_18 %>% 
+  group_by(COD_DEPE2, GEN_ALU) %>% 
+  summarise(alumnos_n = n()) %>% 
+  mutate(alumnos_prop = alumnos_n / sum(alumnos_n))
+```
+
+## Análisis: Matrícula
+
+Hay funciones que facilitan la tarea
+
+```{r}
+sjmisc::frq(df_mat_18, COD_DEPE2)
+```
+
+## Análisis: Matrícula
+
+Hay funciones que facilitan la tarea
+
+```{r}
+df_mat_18 %>% 
+  group_by(GEN_ALU) %>% 
+  sjmisc::frq(COD_DEPE)
+```
+
+# Etiquetas
+
+## Agregar etiquetas
+
+Agregar etiquetas a variable y niveles
+
+```{r}
+df_mat_18 <- df_mat_18 %>% 
+  mutate(COD_DEPE2 = labelled(COD_DEPE2,
+                              labels = c('Municipal' = 1,
+                                         'Particular Subvencionado ' = 2,
+                                         'Particular Pagado' = 3,
+                                         'Administración Delegada' = 4,
+                                         'Servicio Local de Educación' = 5),
+                              label = 'Código de Dependencia del Establecimiento (agrupado)'))
+
+frq(df_mat_18, COD_DEPE2)
+```
+
+## Agregar etiquetas: multiples variables
+
+```{r}
+etiquetas <- c('AGNO' = 'Año escolar',
+               'RBD' = 'Rol base de datos del establecimiento',
+               'NOM_RBD' = 'Nombre del Establecimiento')
+
+set_label(df_mat_18[, names(etiquetas)]) <- etiquetas
+
+df_mat_18 %>% 
+  select(1:2, NOM_RBD) %>% 
+  get_label()
+```
+
+## Agregar niveles: multiples variables
+
+```{r}
+niveles <- c('110' = 'Enseñanza Básica',
+             '310' = 'Enseñanza Media H-C niños y jóvenes',
+             '410' = 'Enseñanza Media T-P Comercial Niños y Jóvenes',
+             '510' = 'Enseñanza Media T-P Industrial Niños y Jóvenes')
+
+df_dir_18 <- set_labels(df_dir_18, 
+                        ENS_01, ENS_02, 
+                        labels = niveles)
+
+df_dir_18 %>% 
+  filter(ENS_01 %in% names(niveles)) %>% 
+  frq(ENS_02)
+```
+
+# Manejo de bases
+
+## Análisis: Código de enseñanza
+
+¿Cuántas escuelas tienen Enseñanza Media H-C `ENS == 310` en el directorio de establecimientos?
+
+```{r}
+df_dir_18 %>% 
+  select(RBD, NOM_RBD, ENS_01:ENS_04)
+```
+
+## Análisis: Código de enseñanza
+
+Tenemos que cambiar la forma de esta base de datos para responder esta pregunta.
+
+```{r}
+df_dir_18_long <- df_dir_18 %>% 
+  gather('variable', 'ENS', starts_with('ENS'))
+
+df_dir_18_long %>% 
+  arrange(RBD) %>% 
+  select(RBD, NOM_RBD, ENS) %>% 
+  head(7)
+```
+
+Falta eliminar los datos *vacios*, que en este caso tienen codigo de enseánza igual a cero.
+
+## Análisis: Código de enseñanza
+
+Depurar base con función `filter()`.
+
+```{r}
+df_dir_18_long <- df_dir_18_long %>% 
+  filter(ENS != 0)
+
+df_dir_18_long %>% 
+  arrange(RBD) %>% 
+  select(RBD, NOM_RBD, ENS)
+```
+
+## Análisis: Código de enseñanza
+
+Contar número de casos según variable `ENS`.
+
+```{r}
+df_dir_18_long %>% 
+  group_by(ENS) %>% 
+  summarise(ENS_n = n()) %>% 
+  filter(ENS %in% c(110, 310))
+```
+
+## Análisis: Código de enseñanza
+
+¿Cuántos establecimientos tienen básica (110) y C-H (310)?
+
+```{r}
+df_dir_bas_y_ch <- df_dir_18_long %>% 
+  group_by(RBD, NOM_RBD) %>% 
+  summarise(basica_y_ch = sum(ENS %in% c(110, 310)) == 2) %>% 
+  ungroup()
+
+df_dir_bas_y_ch %>% 
+  slice(c(1, 7:8))
+```
+
+```{r}
+sum(df_dir_bas_y_ch$basica_y_ch) / nrow(df_dir_bas_y_ch)
+```
+
+# Unión de bases
+
+## Análisis: Directorio y matrícula
+
+¿Cuántos alumnos hay por nivel de enseñanza? ¿Cuál es la edad promedio que tienen?
+
+```{r}
+df_rbd_edad_sexo <- df_mat_18 %>% 
+  group_by(RBD, COD_ENSE) %>% 
+  summarise(alumnos_n = n(),
+            edad_mean = mean(EDAD_ALU),
+            sexo_prop = mean(GEN_ALU == 1))
+
+df_rbd_edad_sexo %>% 
+  head(4)
+```
+
+## Análisis: Directorio y matrícula
+
+Pegar datos de alumnos a directorio de establecimientos por nivel de enseñanza. 
+
+Cambiaré el nombre de una variable con función `rename()`.
+
+```{r}
+df_rbd_edad_sexo <- df_rbd_edad_sexo %>% 
+  rename(ENS = COD_ENSE)
+
+df_dir_18_long_mat <- left_join(df_dir_18_long,
+                                df_rbd_edad_sexo,
+                                by = c('RBD', 'ENS'))
+
+names(df_dir_18_long_mat)
+```
+
+## Análisis: Directorio y matrícula
+
+¿Cuántos alumnos tienen básica (110) y C-H (310)?
+
+```{r}
+df_dir_18_long_mat %>% 
+  group_by(ENS) %>% 
+  summarise(alumnos_n = sum(alumnos_n)) %>% 
+  filter(ENS %in% c(110, 310))
+```
+
+R es sensible con valores perdidos `NA`.
+
+```{r}
+df_dir_18_long_mat %>% 
+  group_by(ENS) %>% 
+  summarise(alumnos_n = sum(alumnos_n, na.rm = TRUE)) %>% 
+  filter(ENS %in% c(110, 310))
+```
+
+# Futuro: integración entre paquetes
+
+## Posición de escuelas en RM
+
+Construir una base de datos con información geográfica a partir de longitud y latitud presente en la base.
+
+```{r}
+df_dir_18_geo <- df_dir_18 %>% 
+  filter(!is.na(LONGITUD)) %>% 
+  st_as_sf(coords = c("LONGITUD", "LATITUD"))
+```
+
+## Posición de escuelas en RM
+
+Ver la ubicación geográfica
+
+```{r, eval=mapas}
+df_dir_18_geo %>% 
+  ggplot(aes(colour = as_factor(COD_DEPE2))) + 
+  geom_sf(alpha = 0.3, size = 0.5)
+```
+
+Faltan las etiquetas
+
+## Posición de escuelas en RM
+
+Agregar etiquetas a variable `COD_DEPE2`. La tenemos en la base de datos.
+
+```{r, eval=mapas}
+gg <- df_dir_18_geo %>% 
+  ggplot(aes(colour = as_label(COD_DEPE2))) + 
+  geom_sf(alpha = 0.3, size = 0.5)+
+  scale_color_discrete(name = 'Dependencia')
+```
+
+## Posición de escuelas en RM: **ggmap**
+
+```{r, warning=FALSE, eval=mapas}
+library(ggmap)
+
+gran_santiago <- c(left = -70.9634, bottom = -33.6558, right = -70.3592, top = -33.2984)
+mapa_base <- get_stamenmap(gran_santiago, zoom = 11)
+
+ggmap(mapa_base) + 
+  geom_point(data = df_dir_18, aes(x = LONGITUD, y = LATITUD, colour = as_label(COD_DEPE2)), size = 0.5) +
+  scale_colour_discrete(name = 'Dependencia')
+```
+
+## Posición de escuelas en RM: **leaflet**
+
+```{r, warning=FALSE, eval=mapas}
+library(leaflet)
+
+leaflet() %>% # leaflet works with the pipe operator
+  addTiles() %>% # setup the default OpenStreetMap map tiles
+  addMarkers(lng = df_dir_18$LONGITUD, lat = df_dir_18$LATITUD, popup = df_dir_18$NOM_RBD)
+```
+
+
+
+
