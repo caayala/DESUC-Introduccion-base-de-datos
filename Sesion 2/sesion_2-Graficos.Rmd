@@ -1,0 +1,339 @@
+---
+title: "R - Taller DESUC"
+author: "DESUC"
+date: "22/01/2019"
+output:
+  ioslides_presentation:
+    smaller: yes
+  pdf_document:
+  beamer_presentation: 
+subtitle: Gráficos en ggplot2
+---
+
+```{r setup, include=FALSE}
+library(tidyverse) # Básico: dplyr, tidyr, purrr, stringr, forcats
+library(knitr)
+
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.height = 3)
+```
+
+## Motivación
+
+¿Por qué?
+
+* Visualización de datos pueden contar una historia
+* Minimizar errores
+
+## Definiciones
+
+* [tidyverse](https://www.tidyverse.org)
+
+*The tidyverse is an opinionated collection of R packages designed for data science. All packages share an underlying design philosophy, grammar, and data structures.*
+
+```{r, fig.align='center', out.width="600px"}
+include_graphics('images/data-science-explore.png')
+```
+
+## Objetivo
+
+Utilizar R y tidyverse para el manejo de base de datos:
+
+* Presentar gramática de gráficos
+* Realizar ejemplos
+
+## Paquetes
+
+```{r, message=FALSE}
+library(readxl) # Lectura de archivos excel
+library(haven) # Lectura de SPSS o Stata
+library(tidyverse) # Básico: dplyr, tidyr, purrr, stringr, forcats
+library(janitor) # Arreglo de nombres y tablas
+
+library(sjlabelled) # Manejo de etiquetas
+library(sjmisc) # Funciones de ayuda
+
+library(knitr) # Creación de documentos mediante Rmarkdown
+```
+
+## Lectura de datos: Bases en texto
+
+Matrícula de alumnos 2018.
+
+```{r}
+df_mat_18 <- read_csv2('../data/20181005_Matrícula_unica_2018_20180430_PUBL.gs.csv.zip')
+```
+
+## Grámatica de gráficos
+
+* `data`: base de datos a graficar
+* `geom_*`: como se mostraran las variables de la base de datos
+* `mappings`: relación entre las variables de la base de datos y elementos del *geom*
+
+```{r, eval=FALSE}
+ggplot(data = <DATA>) + 
+  <GEOM_FUNCTION>(mapping = aes(<MAPPINGS>))
+```
+
+Los gráficos se construyen capa a capa y ellas se *unen* con el signo `+`. No con `%>%` (la pipa)!
+
+## Gráficos: tip
+
+Hay muy buenos *cheetsheets* donde se pueden revisar diversas funciones existentes.
+
+```{r}
+knitr::include_graphics('ggplot.pdf')
+```
+
+## Gráfico: iris
+
+* base de datos de iris
+* relaciono el elemento *x* del gráfico con `Sepal.Length` y el *y* con `Petal.Length`.
+
+```{r}
+ggplot(iris, aes(x = Sepal.Length, y = Petal.Length)) +
+  geom_point()
+```
+
+## Gráfico: mapeo de variables
+
+La geometría `geom_point` tiene los siguientes parámetros que pueden ser modificados y *mapeados* a una variable:
+
+* x
+* y
+* alpha
+* colour
+* fill
+* group
+* shape
+* size
+* stroke
+
+Ver [documentación de la función](https://ggplot2.tidyverse.org/reference/geom_point.html)
+
+## Gráfico: aesthetic
+
+Modifiquemos algunos de esos parámetros.
+
+```{r}
+ggplot(iris, aes(x = Sepal.Length, y = Petal.Length, 
+                 size = Sepal.Width,
+                 shape = Species, colour = Species)) +
+  geom_point()
+```
+
+## Gráfico: aesthetic
+
+¿Cuál es la diferencia de fijar las *aesthetic* en el cuerpo del gráfico o dentro de la geometría?
+
+* Si se fija dentro de `ggplot` afecta a todas las geometrías sucesivas de ese gráfico.
+* Si se fija dentro de `geom_*` afecta sólo a esa geometría.
+
+```{r}
+ggplot(iris, aes(x = Sepal.Length, y = Petal.Length)) +
+  geom_point(aes(colour = Species)) +
+  geom_smooth(colour = 'black')
+```
+
+## Gráfico: aesthetic
+
+¿Cuál es la diferencia de fijar las *aesthetic* en el cuerpo del gráfico o dentro de la geometría?
+
+* Si se fija dentro de `ggplot` afecta a todas las geometrías sucesivas de ese gráfico.
+* Si se fija dentro de `geom_*` afecta sólo a esa geometría.
+
+```{r}
+ggplot(iris, aes(x = Sepal.Length, y = Petal.Length)) +
+  geom_point() +
+  geom_smooth(aes(colour = Species))
+```
+
+## Gráfico: Marcadores
+
+Agregar datos específicos para marcar o destacar elementos.
+
+```{r}
+ggplot(iris, aes(x = Sepal.Length, y = Petal.Length, label = Species,
+                 shape = Species, colour = Species)) +
+  geom_point(alpha = .5) +
+  geom_smooth() +
+  geom_text(data = iris %>% group_by(Species) %>% top_n(-1, Sepal.Length))
+```
+
+## Gráfico: Marcadores
+
+Agregar datos específicos para marcar o destacar elementos.
+
+```{r}
+ggplot(iris, aes(x = Sepal.Length, y = Petal.Length, label = Species,
+                 shape = Species, colour = Species)) +
+  geom_point() +
+  geom_smooth(se = FALSE) +
+  geom_text(data = iris %>% group_by(Species) %>% top_n(-1, Sepal.Length)) +
+  geom_smooth(method = 'lm', formula = y ~ 1, colour = 'gray',
+              se = FALSE, fullrange = TRUE)
+```
+
+## Gráfico: Marcadores
+
+¿Cómo agrego el promedio de `Petal.Length` de cada grupo?
+
+```{r}
+ggplot(iris, aes(x = Sepal.Length, y = Petal.Length, label = Species,
+                 shape = Species, colour = Species)) +
+  geom_smooth(method = 'lm', formula = y ~ 1, colour = 'gray',
+              se = FALSE, fullrange = TRUE) +
+  geom_point() +
+  geom_text(data = iris %>% group_by(Species) %>% top_n(-1, Sepal.Length)) +
+  geom_smooth(se = FALSE)
+```
+
+## Gráfico: facets
+
+Otra forma de mostrar diferencias por variable son *facetas*.
+
+```{r}
+ggplot(iris, aes(x = Sepal.Length, y = Petal.Length,
+                 shape = Species, colour = Species)) +
+  geom_point() +
+  facet_grid(cols = vars(Species))
+```
+
+## Gráfico: facets
+
+Otra forma de mostrar diferencias por variable son *facetas*. Se puede convinar una o más variables.
+
+```{r}
+ggplot(iris, aes(x = Sepal.Length, y = Petal.Length,
+                 shape = Species, colour = Species)) +
+  geom_point() +
+  facet_grid(rows = vars(Species))
+```
+
+## Gráfico: barras
+
+```{r}
+iris_mean <- iris %>% 
+  group_by(Species) %>% 
+  summarise(Petal.Length_mean = mean(Petal.Length))
+
+ggplot(iris_mean, aes(x = Species,
+                      shape = Species, fill = Species)) +
+  geom_bar()
+```
+
+## Gráfico: barras
+
+```{r}
+ggplot(iris_mean, aes(x = Species, y = Petal.Length_mean,
+                      shape = Species, fill = Species)) +
+  geom_col()
+```
+
+## Gráfico: barras
+
+Agregar valor a cada barra
+
+```{r}
+ggplot(iris_mean, aes(x = Species, y = Petal.Length_mean,
+                      shape = Species, fill = Species)) +
+  geom_col() +
+  geom_text(aes(label = round(..y.., 2)), nudge_y = .3)
+```
+
+## Gráfico: estilo
+
+¿Cómo ajustar aspectos de diseño del gráfico?
+
+```{r}
+gg <- ggplot(iris, aes(x = Sepal.Length, y = Petal.Length,
+                 shape = Species, colour = Species)) +
+  geom_point() +
+  facet_grid(cols = vars(Species))
+
+gg
+```
+
+## Gráfico: estilo
+
+¿Cómo ajustar los títulos del gráfico?
+
+```{r}
+gg +
+  labs(title = 'Titulo del gráfico',
+       subtitle = 'Este es un subtitulo escrito en \n dos líneas',
+       caption = 'Fuente: base de datos iris',
+       y = 'largo del pétalo',
+       x = 'largo del sépalo')
+```
+
+## Gráfico: estilo
+
+¿Cómo ajustar visualmente el gráfico? Hay distintos *themes* predefinidos que uno puede ocupar.
+
+```{r}
+gg +
+  theme_dark()
+```
+
+## Gráfico: estilo
+
+¿Cómo ajustar visualmente el gráfico?
+
+```{r}
+gg +
+  theme_minimal()
+```
+
+## Gráfico: estilo
+
+Hay paquetes que proveen diseños adicionales.
+
+```{r}
+pacman::p_load('ggthemes')
+
+gg +
+  ggthemes::theme_economist()
+```
+
+## Gráfico: guardar gráficos
+
+Para guardar gráficos se puede utilizar la función `ggsave()`
+
+```{r}
+ggsave('gg_iris.png', gg)
+ggsave('gg_iris.pdf', gg)
+
+ggsave('gg_iris_5cm.png', gg, width = 5, height = 5, units = 'cm')
+ggsave('gg_iris_5cm_4.png', gg, width = 5, height = 5, units = 'cm', scale = 4)
+```
+
+## Análisis: Matrícula
+
+¿Cuál es el número de alumnos según dependencia?
+
+```{r}
+df_rbd_mat_18 <- df_mat_18 %>% 
+  group_by(RBD, NOM_RBD, NOM_COM_RBD, GEN_ALU, COD_ENSE2) %>% 
+  summarise(alumnos_n = n(),
+            edad_mean = mean(EDAD_ALU))
+```
+
+## Gráfico: Matrícula
+
+```{r}
+df_com_edad <- df_rbd_mat_18 %>% 
+  group_by(NOM_COM_RBD) %>% 
+  summarise(edad_mean = sum(edad_mean * alumnos_n, na.rm = TRUE) / sum(alumnos_n, na.rm = TRUE))
+
+ggplot(df_com_edad, aes(x = NOM_COM_RBD, y = edad_mean)) +
+  geom_col()
+```
+
+## Gráfico: Matrícula
+
+```{r}
+ggplot(df_com_edad, aes(x = NOM_COM_RBD, y = edad_mean)) +
+  geom_col() +
+  coord_flip()
+```
+

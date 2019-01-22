@@ -350,7 +350,8 @@ df_mat_18 %>%
 Hay funciones que facilitan la tarea
 
 ```{r}
-sjmisc::frq(df_mat_18, COD_DEPE2)
+df_mat_18 %>% 
+  sjmisc::frq(COD_DEPE2)
 ```
 
 ## Análisis: Matrícula
@@ -360,7 +361,7 @@ Hay funciones que facilitan la tarea
 ```{r}
 df_mat_18 %>% 
   group_by(GEN_ALU) %>% 
-  sjmisc::frq(COD_DEPE)
+  sjmisc::frq(COD_DEPE2)
 ```
 
 # Etiquetas
@@ -371,6 +372,7 @@ Agregar etiquetas a variable y niveles
 
 ```{r}
 df_mat_18 <- df_mat_18 %>% 
+  ungroup() %>% 
   mutate(COD_DEPE2 = labelled(COD_DEPE2,
                               labels = c('Municipal' = 1,
                                          'Particular Subvencionado ' = 2,
@@ -385,14 +387,14 @@ frq(df_mat_18, COD_DEPE2)
 ## Agregar etiquetas: multiples variables
 
 ```{r}
-etiquetas <- c('AGNO' = 'Año escolar',
-               'RBD' = 'Rol base de datos del establecimiento',
+etiquetas <- c('RBD' = 'Rol base de datos del establecimiento',
+               'AGNO' = 'Año escolar',
                'NOM_RBD' = 'Nombre del Establecimiento')
 
 set_label(df_mat_18[, names(etiquetas)]) <- etiquetas
 
 df_mat_18 %>% 
-  select(1:2, NOM_RBD) %>% 
+  select(1:5, NOM_RBD) %>% 
   get_label()
 ```
 
@@ -404,13 +406,11 @@ niveles <- c('110' = 'Enseñanza Básica',
              '410' = 'Enseñanza Media T-P Comercial Niños y Jóvenes',
              '510' = 'Enseñanza Media T-P Industrial Niños y Jóvenes')
 
-df_dir_18 <- set_labels(df_dir_18, 
-                        ENS_01, ENS_02, 
-                        labels = niveles)
+df_dir_18 <- df_dir_18 %>% set_labels(starts_with('ENS_'),
+                                      labels = niveles)
 
-df_dir_18 %>% 
-  filter(ENS_01 %in% names(niveles)) %>% 
-  frq(ENS_02)
+df_dir_18 %>%
+  frq(ENS_07)
 ```
 
 # Manejo de bases
@@ -493,7 +493,7 @@ df_rbd_edad_sexo <- df_mat_18 %>%
   group_by(RBD, COD_ENSE) %>% 
   summarise(alumnos_n = n(),
             edad_mean = mean(EDAD_ALU),
-            sexo_prop = mean(GEN_ALU == 1))
+            sexo_prop = mean(GEN_ALU == 2))
 
 df_rbd_edad_sexo %>% 
   head(4)
