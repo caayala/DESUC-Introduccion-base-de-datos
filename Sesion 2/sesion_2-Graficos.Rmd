@@ -131,7 +131,7 @@ ggplot(iris, aes(x = Sepal.Length, y = Petal.Length,
 ```{r}
 ggplot(iris, aes(x = Sepal.Length, y = Petal.Length)) +
   geom_point(aes(colour = Species)) +
-  geom_smooth(colour = 'black')
+  geom_smooth()
 ```
 
 ## Gráfico: aesthetic
@@ -212,6 +212,12 @@ ggplot(iris, aes(x = Sepal.Length, y = Petal.Length,
 ## Gráfico: barras
 
 ```{r}
+ggplot(iris, aes(x = Species,
+                      shape = Species, fill = Species)) +
+  geom_bar()
+```
+
+```{r}
 iris_mean <- iris %>% 
   group_by(Species) %>% 
   summarise(Petal.Length_mean = mean(Petal.Length))
@@ -237,7 +243,7 @@ Agregar valor a cada barra
 ggplot(iris_mean, aes(x = Species, y = Petal.Length_mean,
                       shape = Species, fill = Species)) +
   geom_col() +
-  geom_text(aes(label = round(..y.., 2)), nudge_y = .3)
+  geom_text(aes(label = round(..y.., 2)),  nudge_y = .25)
 ```
 
 ## Gráfico: estilo
@@ -260,10 +266,12 @@ gg
 ```{r}
 gg +
   labs(title = 'Titulo del gráfico',
-       subtitle = 'Este es un subtitulo escrito en \n dos líneas',
+       subtitle = 'Este es un subtitulo escrito en\ndos líneas',
        caption = 'Fuente: base de datos iris',
        y = 'largo del pétalo',
-       x = 'largo del sépalo')
+       x = 'largo del sépalo') +
+  scale_colour_viridis_d(name = 'Especie') +
+  scale_shape_discrete(name = 'Especie')
 ```
 
 ## Gráfico: estilo
@@ -272,7 +280,7 @@ gg +
 
 ```{r}
 gg +
-  theme_dark()
+  theme_bw()
 ```
 
 ## Gráfico: estilo
@@ -292,7 +300,7 @@ Hay paquetes que proveen diseños adicionales.
 pacman::p_load('ggthemes')
 
 gg +
-  ggthemes::theme_economist()
+  ggthemes::theme_excel()
 ```
 
 ## Gráfico: guardar gráficos
@@ -300,6 +308,7 @@ gg +
 Para guardar gráficos se puede utilizar la función `ggsave()`
 
 ```{r}
+ggsave('gg_iris.jpg', gg)
 ggsave('gg_iris.png', gg)
 ggsave('gg_iris.pdf', gg)
 
@@ -332,8 +341,19 @@ ggplot(df_com_edad, aes(x = NOM_COM_RBD, y = edad_mean)) +
 ## Gráfico: Matrícula
 
 ```{r}
-ggplot(df_com_edad, aes(x = NOM_COM_RBD, y = edad_mean)) +
-  geom_col() +
-  coord_flip()
+x <- df_com_edad %>% 
+  arrange(desc(edad_mean)) %>% 
+  mutate(NOM_COM_RBD = str_to_title(NOM_COM_RBD),
+         NOM_COM_RBD = forcats::as_factor(NOM_COM_RBD),
+         NOM_COM_RBD = forcats::fct_relevel(NOM_COM_RBD, 'Macul'))
+
+x %>% 
+  ggplot(aes(x = fct_rev(NOM_COM_RBD), y = edad_mean)) +
+  geom_linerange(ymin = 0, aes(ymax = ..y..), colour = 'red', size = 2) +
+  geom_label(size = 3, aes(label = round(..y.., 1))) +
+  coord_flip() +
+  scale_y_continuous(breaks = 0:14, limits = c(8,14)) +
+  labs(x = 'Comunas', 
+       y = 'Edad promedio')
 ```
 
